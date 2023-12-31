@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultName = "sample_name"
+	  defaultName = "sample_name"
 )
 
 var (

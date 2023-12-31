@@ -8,10 +8,27 @@ service Greeter {
   rpc SayHello (HelloRequest) returns (HelloReply) {}
 }
 
+service Recipienter {
+  rpc GetRecipients (GetRecipientsRequest) returns (GetRecipientsResponse) {}
+}
+
 message HelloRequest {
   string name = 1;
 }
 
 message HelloReply {
   string message = 1;
+}
+
+message GetRecipientsRequest {
+  repeated int64 recipient_ids = 1;
+}
+
+message GetRecipientsResponse {
+  repeated Recipient recipient = 1;
+}
+
+message Recipient {
+  int64 repient_id = 1;
+  string email = 2;
 }
