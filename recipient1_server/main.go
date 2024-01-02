@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"slices"
+	"sync"
 
 	pb "github.com/ackieeee/grpc-sample/sample"
 	"google.golang.org/grpc"
@@ -23,6 +25,19 @@ var (
 		{
 			RepientId: 3,
 			Email:     "test3@test.email.com",
+		},
+	}
+	servers = []struct {
+		server pb.RecipienterServer
+		port   string
+	}{
+		{
+			server: &Recipient1Server{},
+			port:   ":50090",
+		},
+		{
+			server: &Recipient2Server{},
+			port:   ":50093",
 		},
 	}
 )
@@ -44,16 +59,44 @@ func (s *Recipient1Server) GetRecipients(ctx context.Context, in *pb.GetRecipien
 	}, nil
 }
 
+type Recipient2Server struct {
+	pb.UnimplementedRecipienterServer
+}
+
+func (s *Recipient2Server) GetRecipients(ctx context.Context, in *pb.GetRecipientsRequest) (*pb.GetRecipientsResponse, error) {
+	return &pb.GetRecipientsResponse{
+		Recipient: []*pb.Recipient{
+			{
+				RepientId: 100,
+				Email:     "test",
+			},
+			{
+				RepientId: 200,
+				Email:     "test2",
+			},
+		},
+	}, nil
+}
+
 func main() {
-	lis, err := net.Listen("tcp", ":50090")
-	if err != nil {
-		log.Fatal("failed to listen: %v", err)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	for _, server := range servers {
+		sv := server
+		go func() {
+			fmt.Println("start listen ", sv.port)
+			lis, err := net.Listen("tcp", sv.port)
+			if err != nil {
+				log.Fatal("failed to listen: %v", err)
+			}
+			s := grpc.NewServer()
+			pb.RegisterRecipienterServer(s, server.server)
+			log.Printf("server listening at %v", lis.Addr())
+			if err := s.Serve(lis); err != nil {
+				log.Fatal("failed to serve: %v", err)
+				wg.Done()
+			}
+		}()
 	}
-	s := grpc.NewServer()
-	server := &Recipient1Server{}
-	pb.RegisterRecipienterServer(s, server)
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatal("failed to serve: %v", err)
-	}
+	wg.Wait()
 }
